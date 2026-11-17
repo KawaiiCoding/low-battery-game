@@ -10,7 +10,7 @@ export function viewSize(): { width: number; height: number } {
 /** Every scene calls this first: renders the logical view at full device resolution. */
 export function setupCamera(scene: Phaser.Scene): Phaser.Cameras.Scene2D.Camera {
   const cam = scene.cameras.main;
-  cam.setOrigin(0, 0).setZoom(VIEW.zoom).setScroll(0, 0);
+  cam.setOrigin(0, 0).setZoom(VIEW.zoom).setScroll(0, 0).setRoundPixels(true);
   return cam;
 }
 

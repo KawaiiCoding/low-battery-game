@@ -38,6 +38,8 @@ async function start() {
     backgroundColor: BG_COLOR,
     pixelArt: true,
     antialias: false,
+    // Snap everything to whole screen pixels: no blur on moving sprites.
+    roundPixels: true,
     audio: { noAudio: true },
     input: { activePointers: 3 },
     physics: { default: 'arcade', arcade: { debug: false } },
