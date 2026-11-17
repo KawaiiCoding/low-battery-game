@@ -209,6 +209,15 @@ class AudioEngine {
     return true;
   }
 
+  /** Rising arpeggio for combo milestones: higher combo = higher pitch. */
+  combo(level: number): void {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== 'running' || this.muted) return;
+    const t = ctx.currentTime + 0.005;
+    const base = 72 + Math.min(level, 8) * 2;
+    [0, 4, 7, 12].forEach((d, i) => this.voice(midi(base + d), t + i * 0.045, 0.09, 'triangle', 0.12, this.sfxBus));
+  }
+
   // ---------- sfx ----------
   sfx(name: Sfx): void {
     const ctx = this.ctx;

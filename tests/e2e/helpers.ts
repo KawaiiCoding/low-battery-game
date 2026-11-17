@@ -164,7 +164,13 @@ export async function handleOverlays(page: Page, touch: boolean) {
   } else if (scenes.includes('LevelUp')) {
     await page.waitForTimeout(450);
     await expectNoTextOverflow(page);
-    await tapButton(page, 'LevelUp', '', touch);
+    // Two-step: the CHOOSE button is disabled until a card is selected
+    expect(await page.evaluate(() => (window as any).__LB.game.scene.getScene('LevelUp').children.list.some((o: any) => o.type === 'Container' && o.alpha < 1 && o.list?.some((t: any) => t.text === 'TAP A POWER ABOVE')))).toBe(true);
+    const card = await findButton(page, 'LevelUp', '');
+    await tap(page, card!.x, card!.y, touch);
+    await page.waitForTimeout(150);
+    await expectNoTextOverflow(page);
+    await tapButton(page, 'LevelUp', 'CHOOSE', touch);
   } else if (scenes.includes('Pause')) {
     await tapButton(page, 'Pause', 'RESUME', touch);
   }

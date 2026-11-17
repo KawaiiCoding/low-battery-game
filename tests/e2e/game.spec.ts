@@ -89,6 +89,14 @@ test.describe('Low Battery', () => {
     // Clear all three worlds
     for (let w = 0; w < 3; w++) {
       await callGame(page, 'debugGod', true);
+      // This world's special twist event
+      await callGame(page, 'debugEvent');
+      for (let i = 0; i < 10; i++) {
+        await page.waitForTimeout(200);
+        await handleOverlays(page, touch);
+      }
+      await expectNoTextOverflow(page);
+      await shot(page, info, `06-event-world${w + 1}`);
       await callGame(page, 'debugSkipToBoss');
       await waitGame(page, "s.boss && s.boss.mode === 'fight'", touch);
       if (w === 0) await shot(page, info, '06-boss');

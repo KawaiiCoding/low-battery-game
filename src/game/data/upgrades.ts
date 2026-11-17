@@ -16,18 +16,18 @@ export interface Stats {
 
 export const BASE_STATS: Readonly<Stats> = Object.freeze({
   moveSpeed: 70,
-  fireDelay: 420,
-  damage: 1.5,
+  fireDelay: 500,
+  damage: 1.1,
   projectiles: 1,
   pierce: 0,
   bulletSpeed: 180,
-  range: 130,
+  range: 105,
   magnet: 30,
-  drainPerSec: 0.4,
-  hitDamage: 7,
+  drainPerSec: 0.75,
+  hitDamage: 8,
   invulnMs: 1100,
   orbiters: 0,
-  boltHeal: 15,
+  boltHeal: 12,
 });
 
 export interface UpgradeDef {

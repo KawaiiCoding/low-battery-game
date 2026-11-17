@@ -31,7 +31,9 @@ export class BriefScene extends Phaser.Scene {
       rows.push({ icon: icon('ping', 3), text: 'You shoot all by yourself. Just move and dodge!' });
       rows.push({ icon: icon('bolt'), text: 'Battery = your life. Grab yellow bolts to recharge.' });
       rows.push({ icon: icon('gem'), text: 'Blue gems fill the top bar. Full bar = pick a new power!' });
+      rows.push({ icon: icon('chip'), text: `Special: ${w.event.howTo}` });
     } else {
+      rows.push({ icon: icon(w.event.kind === 'golden' ? 'friend_gold' : 'fly'), text: `Special: ${w.event.howTo}` });
       rows.push({ icon: icon(w.enemies[w.enemies.length - 1].id === 'note' ? 'glitter' : 'poop'), text: w.tip });
       rows.push({ icon: icon('bolt'), text: 'Remember: yellow bolts recharge your battery.' });
     }

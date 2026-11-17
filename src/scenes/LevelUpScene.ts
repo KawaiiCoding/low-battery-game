@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { audio } from '../game/audio';
 import { describeChange, type UpgradeDef } from '../game/data/upgrades';
-import { fitWidth, overlay, setupCamera, text, viewSize } from '../ui/ui';
+import { button, fitWidth, overlay, setupCamera, text, viewSize } from '../ui/ui';
 
 export interface LevelUpData {
   offers: UpgradeDef[];
@@ -29,7 +29,7 @@ export class LevelUpScene extends Phaser.Scene {
     audio.sfx('levelup');
     overlay(this, 0.82, 0);
 
-    const blockH = 42 + data.offers.length * (CARD_H + GAP) - GAP;
+    const blockH = 42 + data.offers.length * (CARD_H + GAP) - GAP + 44;
     const top = Math.round((H - blockH) / 2);
     const title = text(this, W / 2, top, 'LEVEL UP!', { align: 'center', size: 16, bold: true, color: 'y' });
     this.tweens.add({ targets: title, y: title.y - 2, yoyo: true, repeat: -1, duration: 600, ease: 'Sine.inOut' });
@@ -38,27 +38,52 @@ export class LevelUpScene extends Phaser.Scene {
     let ready = false;
     this.time.delayedCall(350, () => (ready = true));
 
-    const choose = (u: UpgradeDef) => {
+    // Two-step choice: tap a card to select it, then tap CHOOSE to confirm (no accidental picks).
+    let selected = -1;
+    const redraws: ((state: 'idle' | 'press' | 'selected') => void)[] = [];
+    const select = (i: number) => {
       if (!ready || this.picked) return;
+      selected = i;
+      audio.sfx('tap');
+      redraws.forEach((d, j) => d(j === i ? 'selected' : 'idle'));
+      confirm.setEnabled(true);
+      confirm.label.setText(`CHOOSE: ${data.offers[i].name.toUpperCase()}`);
+      fitWidth(confirm.label, CARD_W - 12);
+    };
+    const choose = () => {
+      if (!ready || this.picked || selected < 0) return;
       this.picked = true;
       audio.sfx('select');
       this.scene.stop();
-      data.onPick(u.id);
+      data.onPick(data.offers[selected].id);
     };
+    const confirmY = top + 42 + data.offers.length * (CARD_H + GAP) + 14;
+    const confirm = button(this, W / 2, confirmY, 'TAP A POWER ABOVE', choose, { w: CARD_W, h: 28, color: 0x2a9d55, size: 9 });
+    confirm.setEnabled(false);
+    this.input.keyboard?.on('keydown-ENTER', choose);
+    this.input.keyboard?.on('keydown-SPACE', choose);
 
     data.offers.forEach((u, i) => {
       const cy = top + 42 + CARD_H / 2 + i * (CARD_H + GAP);
       const c = this.add.container(W / 2, cy);
       const g = this.add.graphics();
       const accent = u.instant ? 0x2a9d55 : 0x3868e8;
-      const draw = (hl: boolean) => {
+      let check: Phaser.GameObjects.Container | null = null;
+      const draw = (state: 'idle' | 'press' | 'selected') => {
         g.clear();
+        const sel = state === 'selected';
         g.fillStyle(0x0b0816, 0.6).fillRoundedRect(-CARD_W / 2, -CARD_H / 2 + 2, CARD_W, CARD_H, 4);
-        g.fillStyle(hl ? 0xf2d680 : 0x6a6690).fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 4);
+        if (sel) g.fillStyle(0x78e048).fillRoundedRect(-CARD_W / 2 - 2, -CARD_H / 2 - 2, CARD_W + 4, CARD_H + 4, 5);
+        g.fillStyle(sel ? 0x78e048 : state === 'press' ? 0xf2d680 : 0x6a6690).fillRoundedRect(-CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 4);
         g.fillStyle(0x1c1838).fillRoundedRect(-CARD_W / 2 + 1, -CARD_H / 2 + 1, CARD_W - 2, CARD_H - 2, 3);
         g.fillStyle(accent).fillRoundedRect(-CARD_W / 2 + 1, -CARD_H / 2 + 1, 4, CARD_H - 2, { tl: 3, bl: 3, tr: 0, br: 0 });
       };
-      draw(false);
+      draw('idle');
+      redraws.push((st) => {
+        draw(st);
+        check?.setVisible(st === 'selected');
+        c.setScale(st === 'selected' ? 1.03 : 1);
+      });
 
       const lvl = data.levels[u.id] ?? 0;
       const tagStr = u.instant ? 'NOW' : lvl === 0 ? 'NEW' : `LV ${lvl + 1}`;
@@ -98,15 +123,20 @@ export class LevelUpScene extends Phaser.Scene {
         arrow.x = from.x + from.width + 6;
         to.x = arrow.x + 6;
       }
-      c.add([g, badge, icon, tagBg, tag, name, desc, rowBg, label, from, arrow, to]);
+      // Selected check mark over the icon
+      const tick = this.add.graphics();
+      tick.fillStyle(0x78e048).fillCircle(0, 0, 7);
+      tick.lineStyle(2, 0x0b0816).beginPath().moveTo(-3.5, 0).lineTo(-1, 2.5).lineTo(3.5, -2.5).strokePath();
+      check = this.add.container(iconX + 10, -18, [tick]).setVisible(false);
+      c.add([g, badge, icon, tagBg, tag, name, desc, rowBg, label, from, arrow, to, check]);
 
       c.setSize(CARD_W, CARD_H).setInteractive({ useHandCursor: true });
-      c.on('pointerdown', () => draw(true));
-      c.on('pointerout', () => draw(false));
-      c.on('pointerup', () => choose(u));
+      c.on('pointerdown', () => { if (selected !== i) draw('press'); });
+      c.on('pointerout', () => draw(selected === i ? 'selected' : 'idle'));
+      c.on('pointerup', () => select(i));
       c.setAlpha(0).setX(W / 2 + 16);
       this.tweens.add({ targets: c, alpha: 1, x: W / 2, delay: i * 70, duration: 220, ease: 'Back.out' });
-      this.input.keyboard?.once(`keydown-${['ONE', 'TWO', 'THREE'][i]}`, () => choose(u));
+      this.input.keyboard?.on(`keydown-${['ONE', 'TWO', 'THREE'][i]}`, () => select(i));
     });
   }
 }

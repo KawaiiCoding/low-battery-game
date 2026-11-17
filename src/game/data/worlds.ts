@@ -1,6 +1,6 @@
 import type { SpriteKey } from '../sprites';
 
-export type Behavior = 'chase' | 'zigzag' | 'dash' | 'shooter';
+export type Behavior = 'chase' | 'zigzag' | 'dash' | 'shooter' | 'flee';
 
 export interface EnemyDef {
   sprite: SpriteKey;
@@ -24,6 +24,7 @@ export const ENEMIES = {
   blob: { sprite: 'blob', hp: 9, speed: 34, behavior: 'chase', xp: 2, contact: 1.1, radius: 5 },
   fly: { sprite: 'fly', hp: 4, speed: 56, behavior: 'zigzag', xp: 1, contact: 0.8, radius: 3 },
   poop: { sprite: 'poop', hp: 10, speed: 22, behavior: 'shooter', xp: 3, contact: 1, radius: 4, bullet: 'bullet_o' },
+  golden: { sprite: 'friend_gold', hp: 14, speed: 48, behavior: 'flee', xp: 0, contact: 0, radius: 5 },
 } satisfies Record<string, EnemyDef>;
 
 export type EnemyId = keyof typeof ENEMIES;
@@ -63,6 +64,8 @@ export interface WorldDef {
   music: 'w1' | 'w2' | 'w3';
   /** One plain-language tip shown on the mission card. */
   tip: string;
+  /** This world's special twist, triggered every `every` seconds during the wave. */
+  event: { kind: 'lag' | 'golden' | 'stampede'; every: number; name: string; howTo: string };
 }
 
 export const WORLDS: readonly WorldDef[] = [
@@ -71,8 +74,8 @@ export const WORLDS: readonly WorldDef[] = [
     name: 'Dial-Up Maze',
     subtitle: 'World 1: 56K of pure pain',
     duration: 60,
-    spawnStart: 0.9,
-    spawnEnd: 2.6,
+    spawnStart: 1.1,
+    spawnEnd: 2.9,
     maxAlive: 45,
     enemies: [
       { id: 'spam', weight: 6, from: 0 },
@@ -98,14 +101,15 @@ export const WORLDS: readonly WorldDef[] = [
     bg: { base: 0x101833, line: 0x1c2a52, dot: 0x2b4a8a, style: 'grid' },
     music: 'w1',
     tip: 'Popup windows are tough. Keep moving and let your pings do the work.',
+    event: { kind: 'lag', every: 17, name: 'LAG SPIKE!', howTo: 'Sometimes everything freezes. Use it to escape or attack!' },
   },
   {
     id: 'profile',
     name: 'Profile Dungeon',
     subtitle: 'World 2: Glitter. Everywhere.',
     duration: 65,
-    spawnStart: 1.1,
-    spawnEnd: 3.0,
+    spawnStart: 1.3,
+    spawnEnd: 3.3,
     maxAlive: 50,
     enemies: [
       { id: 'friend', weight: 5, from: 0 },
@@ -132,14 +136,15 @@ export const WORLDS: readonly WorldDef[] = [
     bg: { base: 0x22103a, line: 0x341a55, dot: 0x6a3a9a, style: 'sparkle' },
     music: 'w2',
     tip: 'Glitter blinks, then dashes at you. When it blinks, step aside!',
+    event: { kind: 'golden', every: 16, name: 'GOING VIRAL!', howTo: 'A golden friend runs away from you. Catch it for a big reward!' },
   },
   {
     id: 'petsim',
     name: 'Pet Sim Meadow',
     subtitle: 'World 3: You forgot to feed it',
     duration: 70,
-    spawnStart: 1.2,
-    spawnEnd: 3.4,
+    spawnStart: 1.4,
+    spawnEnd: 3.7,
     maxAlive: 55,
     enemies: [
       { id: 'blob', weight: 5, from: 0 },
@@ -167,6 +172,7 @@ export const WORLDS: readonly WorldDef[] = [
     bg: { base: 0x0e2418, line: 0x163522, dot: 0x2a5a36, style: 'grass' },
     music: 'w3',
     tip: 'Poop shoots stinky blobs. Keep moving and you will be fine.',
+    event: { kind: 'stampede', every: 15, name: 'STAMPEDE!', howTo: 'A line of flies sweeps across. Find the gap and dodge!' },
   },
 ];
 

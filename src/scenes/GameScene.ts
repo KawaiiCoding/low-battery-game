@@ -29,6 +29,10 @@ interface EnemyState {
   flashUntil: number;
   orbitHitAt: number;
   shadow: Phaser.GameObjects.Image;
+  /** Stampede flies: fly straight across and leave. */
+  sweep: boolean;
+  /** Golden friend: disappears at this time if not caught. */
+  expiresAt: number;
 }
 
 interface PingState {
@@ -67,7 +71,7 @@ const OVERHANG = 3;
 const INSET = WALL + OVERHANG;
 
 const ENEMY_COLOR: Record<EnemyId, string> = {
-  spam: 'w', popup: 'b', virus: 'l', glitter: 'y', friend: 'c', note: 'm', blob: 'l', fly: 'g', poop: 'n',
+  spam: 'w', popup: 'b', virus: 'l', glitter: 'y', friend: 'c', note: 'm', blob: 'l', fly: 'g', poop: 'n', golden: 'y',
 };
 
 export interface GameData {
@@ -124,6 +128,11 @@ export class GameScene extends Phaser.Scene {
   private toastObj: Phaser.GameObjects.Container | null = null;
   private tips = new Set<string>();
   private bossArrow!: Phaser.GameObjects.Triangle;
+  private combo = 0;
+  private comboTimer = 0;
+  private comboText: Txt | null = null;
+  private eventTimer = 0;
+  private frozenUntil = 0;
   private danger!: Phaser.GameObjects.Graphics;
   private hint: Txt | null = null;
 
@@ -159,6 +168,11 @@ export class GameScene extends Phaser.Scene {
     this.briefPending = true;
     this.toastObj = null;
     this.tips = new Set();
+    this.combo = 0;
+    this.comboTimer = 0;
+    this.comboText = null;
+    this.eventTimer = 0;
+    this.frozenUntil = 0;
     updateSave({ checkpoint: cloneRun(this.checkpoint), character: this.character });
   }
 
@@ -306,7 +320,7 @@ export class GameScene extends Phaser.Scene {
       this.battery = clampBattery(this.battery - this.stats.drainPerSec * dt);
       this.updateFiring(dt);
       this.boltTimer += dt;
-      if (this.boltTimer >= 11) {
+      if (this.boltTimer >= 25) {
         this.boltTimer = 0;
         const a = Math.random() * Math.PI * 2;
         this.dropPickup(this.player.x + Math.cos(a) * 50, this.player.y + Math.sin(a) * 50, 'bolt', this.stats.boltHeal);
@@ -323,6 +337,11 @@ export class GameScene extends Phaser.Scene {
       if (this.battery <= 0) this.die();
     }
 
+    if (this.comboTimer > 0) {
+      this.comboTimer -= dt;
+      if (this.comboTimer <= 0) this.endCombo();
+    }
+
     if (this.phase === 'waves') {
       this.elapsed += dt;
       const t = this.elapsed;
@@ -330,6 +349,11 @@ export class GameScene extends Phaser.Scene {
       while (this.spawnAcc >= 1) {
         this.spawnAcc -= 1;
         if (this.enemies.countActive(true) < this.world.maxAlive) this.spawnEnemy(pickEnemy(this.world, t));
+      }
+      this.eventTimer += dt;
+      if (this.eventTimer >= this.world.event.every && t < this.world.duration - 6) {
+        this.eventTimer = 0;
+        this.triggerEvent();
       }
       if (t >= this.world.duration) this.startBoss();
     } else if (this.phase === 'boss') {
@@ -554,6 +578,8 @@ export class GameScene extends Phaser.Scene {
       dashY: 0,
       flashUntil: 0,
       orbitHitAt: 0,
+      sweep: false,
+      expiresAt: 0,
     });
     return e;
   }
@@ -569,6 +595,28 @@ export class GameScene extends Phaser.Scene {
       if (!s) continue;
       if (this.phase === 'dead') {
         e.setVelocity(0, 0);
+        continue;
+      }
+      if (s.sweep) {
+        e.setVelocity(s.dashX * 85, 0);
+        s.shadow.setPosition(Math.round(e.x), Math.round(e.y + e.height / 2));
+        const v = this.viewRect();
+        if ((s.dashX > 0 && e.x > v.x + v.width + 20) || (s.dashX < 0 && e.x < v.x - 20)) {
+          s.shadow.setVisible(false);
+          e.disableBody(true, true);
+        }
+        continue;
+      }
+      if (s.expiresAt && this.now > s.expiresAt) {
+        this.burst(e.x, e.y, 'y', 10);
+        this.toast('The golden friend got away. Next time!', 'w');
+        s.shadow.setVisible(false);
+        e.disableBody(true, true);
+        continue;
+      }
+      if (this.now < this.frozenUntil && s.id !== 'golden') {
+        e.setVelocity(0, 0);
+        s.shadow.setPosition(Math.round(e.x), Math.round(e.y + e.height / 2));
         continue;
       }
       const dx = px - e.x;
@@ -622,6 +670,10 @@ export class GameScene extends Phaser.Scene {
             s.cd = 1.2;
           }
           break;
+        case 'flee':
+          vx = -ux * sp + Math.sin(this.now / 400 + s.seed) * 20;
+          vy = -uy * sp + Math.cos(this.now / 400 + s.seed) * 20;
+          break;
         case 'shooter': {
           const k = d > 85 ? 1 : d < 60 ? -0.8 : 0;
           const side = Math.sin(this.now / 900 + s.seed) * 0.5;
@@ -662,10 +714,22 @@ export class GameScene extends Phaser.Scene {
   private killEnemy(e: ESprite, s: EnemyState, drops: boolean) {
     this.burst(e.x, e.y, ENEMY_COLOR[s.id], 8);
     audio.sfx('kill');
+    if (drops && s.id === 'golden') {
+      this.floatText(e.x, e.y - 10, 'CAUGHT IT!', 'y');
+      this.toast('You went viral! Big reward!', 'y');
+      audio.combo(5);
+      buzz(40);
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        this.dropPickup(e.x + Math.cos(a) * 14, e.y + Math.sin(a) * 14, 'gem', 2);
+      }
+      this.dropPickup(e.x, e.y, 'bolt', this.stats.boltHeal);
+    }
     if (drops) {
       this.run.kills++;
+      if (this.phase === 'waves' || this.phase === 'boss') this.bumpCombo();
       this.dropPickup(e.x, e.y, 'gem', s.def.xp);
-      const boltChance = this.battery < 20 ? 0.12 : this.battery < 40 ? 0.08 : 0.04;
+      const boltChance = this.battery < 20 ? 0.07 : this.battery < 40 ? 0.04 : 0.015;
       if (Math.random() < boltChance) this.dropPickup(e.x + 4, e.y, 'bolt', this.stats.boltHeal);
     }
     s.shadow.setVisible(false);
@@ -674,7 +738,7 @@ export class GameScene extends Phaser.Scene {
 
   private onTouchEnemy(e: ESprite) {
     const s = this.estate.get(e);
-    if (!s || !e.active) return;
+    if (!s || !e.active || s.def.contact === 0) return;
     if (this.now < this.invulnUntil) return;
     this.hurt(this.stats.hitDamage * s.def.contact);
     const a = Math.atan2(e.y - this.player.y, e.x - this.player.x);
@@ -817,7 +881,11 @@ export class GameScene extends Phaser.Scene {
     const ups = addXp(this.run, p.value);
     if (ups > 0) {
       this.pendingLevelUps += ups;
-      this.maybeOpenLevelUp();
+      // A short celebration before the cards appear (also prevents accidental taps).
+      this.burst(this.player.x, this.player.y, 'y', 16);
+      this.burst(this.player.x, this.player.y, 'c', 12);
+      this.floatText(this.player.x, this.player.y - 14, 'LEVEL UP!', 'y');
+      this.time.delayedCall(450, () => this.maybeOpenLevelUp());
     }
   }
 
@@ -1082,6 +1150,95 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  // ===================================================================== world events
+  triggerEvent() {
+    const ev = this.world.event;
+    if (this.phase !== 'waves') return;
+    audio.sfx('warn');
+    if (ev.kind === 'lag') {
+      this.banner(ev.name, 'Enemies frozen. Go go go!', 'l', 1600);
+      this.frozenUntil = this.now + 3000;
+      this.cameras.main.shake(150, 0.004);
+      for (const o of this.enemies.getChildren()) {
+        const e = o as ESprite;
+        if (!e.active) continue;
+        e.setTint(0x88aaff);
+        this.time.delayedCall(3000, () => e.active && e.clearTint());
+      }
+    } else if (ev.kind === 'golden') {
+      this.banner(ev.name, 'Catch the golden friend!', 'y', 1600);
+      const a = Math.random() * Math.PI * 2;
+      const e = this.spawnEnemy('golden', {
+        x: Phaser.Math.Clamp(this.player.x + Math.cos(a) * 60, INSET + 10, this.WW - INSET - 10),
+        y: Phaser.Math.Clamp(this.player.y + Math.sin(a) * 60, INSET + 10, this.WH - INSET - 10),
+      });
+      if (e) {
+        this.estate.get(e)!.expiresAt = this.now + 9000;
+        this.burst(e.x, e.y, 'y', 12);
+      }
+    } else {
+      this.banner(ev.name, 'Find the gap and dodge!', 'r', 1600);
+      const v = this.viewRect();
+      const fromLeft = Math.random() < 0.5;
+      const gap = Phaser.Math.Between(1, 6);
+      this.time.delayedCall(900, () => {
+        if (this.phase !== 'waves') return;
+        for (let i = 0; i < 9; i++) {
+          if (i === gap || i === gap + 1) continue;
+          const y = v.y + 34 + i * ((v.height - 50) / 8);
+          const x = fromLeft ? v.x - 10 : v.x + v.width + 10;
+          const e = this.spawnEnemy('fly', { x: Phaser.Math.Clamp(x, INSET + 4, this.WW - INSET - 4), y: Phaser.Math.Clamp(y, INSET + 4, this.WH - INSET - 4) });
+          if (!e) continue;
+          const st = this.estate.get(e)!;
+          st.sweep = true;
+          st.dashX = fromLeft ? 1 : -1;
+          (e.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(false);
+        }
+      });
+    }
+  }
+
+  // ===================================================================== combo
+  private bumpCombo() {
+    this.combo++;
+    this.comboTimer = 1.8;
+    if (this.combo < 3) return;
+    const { width: W } = viewSize();
+    const big = this.combo % 10 === 0;
+    const color = this.combo >= 30 ? 'm' : this.combo >= 15 ? 'y' : 'c';
+    if (!this.comboText) {
+      this.comboText = text(this, W / 2, 30, '', { align: 'center', size: 10, bold: true, fixed: true, depth: 1002 });
+    }
+    const t = this.comboText;
+    t.setText(`x${this.combo} COMBO`);
+    setColor(t, color);
+    t.setAlpha(1);
+    this.tweens.killTweensOf(t);
+    t.setScale(big ? 1.6 : 1.25);
+    this.tweens.add({ targets: t, scale: 1, duration: 180, ease: 'Back.out' });
+    if (big) {
+      audio.combo(this.combo / 10);
+      const msg = ['NICE!', 'GREAT!', 'AMAZING!', 'UNSTOPPABLE!', 'LEGENDARY!'][Math.min(4, this.combo / 10 - 1)];
+      this.floatText(this.player.x, this.player.y - 16, msg, 'y');
+      this.burst(this.player.x, this.player.y, 'm', 14);
+      this.burst(this.player.x, this.player.y, 'y', 14);
+      buzz(25);
+      // Reward: a little gem shower
+      for (let i = 0; i < 3 + this.combo / 10; i++) {
+        const a = Math.random() * Math.PI * 2;
+        this.dropPickup(this.player.x + Math.cos(a) * 26, this.player.y + Math.sin(a) * 26, 'gem', 1);
+      }
+    }
+  }
+
+  private endCombo() {
+    this.combo = 0;
+    const t = this.comboText;
+    if (!t) return;
+    this.tweens.killTweensOf(t);
+    this.tweens.add({ targets: t, alpha: 0, duration: 400 });
+  }
+
   // ===================================================================== fx
   private burst(x: number, y: number, color: string, n: number) {
     (this.emitters[color] ?? this.emitters.w).explode(n, x, y);
@@ -1233,6 +1390,9 @@ export class GameScene extends Phaser.Scene {
   debugTeleport(x: number, y: number) {
     this.player.setPosition(x, y);
     (this.player.body as Phaser.Physics.Arcade.Body).reset(x, y);
+  }
+  debugEvent() {
+    this.triggerEvent();
   }
   debugSkipToBoss() {
     this.elapsed = this.world.duration;

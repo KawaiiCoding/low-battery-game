@@ -275,6 +275,7 @@ export const SPRITES = {
   },
   glitter: { fps: 6, frames: [GLITTER, recolor(GLITTER, { y: 'm' })] },
   friend: { fps: 3, frames: [FRIEND, FRIEND.map((r, i) => (i === 10 ? 'k.kkkkkk.k' : r))] },
+  friend_gold: { fps: 6, frames: [recolor(FRIEND, { c: 'y', b: 'o' }), recolor(FRIEND, { c: 'w', b: 'y' })] },
   note: { fps: 4, frames: [NOTE, recolor(NOTE, { m: 'p' })] },
   blob: { fps: 4, frames: [BLOB_A, BLOB_B] },
   fly: { fps: 10, frames: [FLY, recolor(FLY, { c: 'w' })] },
