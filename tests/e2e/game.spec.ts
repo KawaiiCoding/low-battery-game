@@ -32,8 +32,7 @@ test.describe('Low Battery', () => {
     await shot(page, info, '03-story');
 
     // Story intro: tap through every line, checking text fits each time
-    await advanceStoryUntil(page, 'Game', touch);
-    await waitScene(page, 'Brief');
+    await advanceStoryUntil(page, 'Brief', touch);
     await page.waitForTimeout(500);
     await expectNoTextOverflow(page);
     await shot(page, info, '03b-mission');
@@ -118,7 +117,7 @@ test.describe('Low Battery', () => {
       await waitScene(page, 'Story');
       await page.waitForTimeout(400);
       if (w < 2) {
-        await advanceStoryUntil(page, 'Game', touch);
+        await advanceStoryUntil(page, 'Brief', touch);
         await enterGame(page, touch);
         expect((await gameState(page)).world).toBe(w + 1);
         expect((await gameState(page)).battery).toBeGreaterThan(99);

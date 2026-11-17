@@ -47,10 +47,10 @@ export function text(scene: Phaser.Scene, x: number, y: number, str: string, o: 
     // A crisp dark outline keeps text readable over any background (better than a soft shadow).
     stroke: '#0b0816',
     strokeThickness: 1.5,
-    // Wrap a little early to leave room for letter spacing.
-    wordWrap: o.maxWidth ? { width: o.maxWidth * 0.94, useAdvancedWrap: true } : undefined,
+    wordWrap: o.maxWidth ? { width: o.maxWidth, useAdvancedWrap: true } : undefined,
   });
-  t.setLetterSpacing(LETTER_SPACING);
+  // Letter spacing only on single-line text (Phaser's wrap + letterSpacing path logs every word).
+  if (!o.maxWidth) t.setLetterSpacing(LETTER_SPACING);
   t.setOrigin(align === 'center' ? 0.5 : align === 'right' ? 1 : 0, o.originY ?? 0);
   if (o.depth !== undefined) t.setDepth(o.depth);
   if (o.fixed) t.setScrollFactor(0);

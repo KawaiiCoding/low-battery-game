@@ -172,6 +172,10 @@ describe('upgrade descriptions', () => {
     expect(describeChange(getUpgrade('saver'), {}, 50).to).toMatch(/s$/);
   });
 
+  it('descriptions are short enough to fit the card on one line', () => {
+    for (const u of UPGRADES) expect(u.desc.length, u.desc).toBeLessThanOrEqual(24);
+  });
+
   it('every upgrade icon exists', async () => {
     const { SPRITES } = await import('../../src/game/sprites');
     for (const u of UPGRADES) expect(SPRITES[u.icon as keyof typeof SPRITES], u.icon).toBeDefined();

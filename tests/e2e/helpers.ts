@@ -159,18 +159,27 @@ export async function handleOverlays(page: Page, touch: boolean) {
   if (scenes.includes('Brief')) {
     await page.waitForTimeout(450);
     await expectNoTextOverflow(page);
-    await tapButton(page, 'Brief', "LET'S GO", touch);
-    await page.waitForTimeout(100);
+    // The card ignores taps for its first moment (anti-accidental-tap), so retry until it closes.
+    for (let i = 0; i < 20 && (await activeScenes(page)).includes('Brief'); i++) {
+      await tapButton(page, 'Brief', "LET'S GO", touch);
+      await page.waitForTimeout(250);
+    }
   } else if (scenes.includes('LevelUp')) {
     await page.waitForTimeout(450);
     await expectNoTextOverflow(page);
     // Two-step: the CHOOSE button is disabled until a card is selected
     expect(await page.evaluate(() => (window as any).__LB.game.scene.getScene('LevelUp').children.list.some((o: any) => o.type === 'Container' && o.alpha < 1 && o.list?.some((t: any) => t.text === 'TAP A POWER ABOVE')))).toBe(true);
-    const card = await findButton(page, 'LevelUp', '');
-    await tap(page, card!.x, card!.y, touch);
-    await page.waitForTimeout(150);
+    // Step 1: select a card (retry while the screen ignores early taps)
+    for (let i = 0; i < 20 && !(await findButton(page, 'LevelUp', 'CHOOSE')); i++) {
+      const card = (await findButton(page, 'LevelUp', 'NEW')) ?? (await findButton(page, 'LevelUp', 'LV ')) ?? (await findButton(page, 'LevelUp', 'NOW'));
+      expect(card, 'an upgrade card').not.toBeNull();
+      await tap(page, card!.x, card!.y, touch);
+      await page.waitForTimeout(250);
+    }
     await expectNoTextOverflow(page);
+    // Step 2: confirm once
     await tapButton(page, 'LevelUp', 'CHOOSE', touch);
+    await page.waitForTimeout(300);
   } else if (scenes.includes('Pause')) {
     await tapButton(page, 'Pause', 'RESUME', touch);
   }
@@ -221,8 +230,8 @@ export async function waitGame(page: Page, pred: string, touch: boolean, timeout
 
 /** Waits for the Game scene, then dismisses the mission card. */
 export async function enterGame(page: Page, touch: boolean) {
-  await waitScene(page, 'Game');
-  await waitScene(page, 'Brief');
+  // The Game scene pauses itself behind the mission card as soon as it starts.
+  await waitScene(page, 'Brief', 20000);
   await handleOverlays(page, touch);
   await page.waitForTimeout(300);
 }

@@ -48,14 +48,14 @@ export const UPGRADES: readonly UpgradeDef[] = [
   { id: 'poly', name: 'Polyphonic Ringtone', desc: 'Fire more pings at once', maxLevel: 4, icon: 'icon_shots', stat: { label: 'Pings per shot', value: (s) => s.projectiles }, apply: (s) => (s.projectiles += 1) },
   { id: 'speeddial', name: 'Speed Dial', desc: 'Shoot faster', maxLevel: 5, icon: 'icon_rate', stat: { label: 'Shots per second', value: (s) => 1000 / s.fireDelay, decimals: 1 }, apply: (s) => (s.fireDelay = Math.round(s.fireDelay * 0.82)) },
   { id: 'bigpixels', name: 'Big Pixels', desc: 'Each ping hits harder', maxLevel: 5, icon: 'icon_damage', stat: { label: 'Damage', value: (s) => s.damage, decimals: 1 }, apply: (s) => (s.damage = +(s.damage * 1.35).toFixed(3)) },
-  { id: 't9', name: 'T9 Predictive', desc: 'Pings fly through enemies', maxLevel: 3, icon: 'icon_pierce', stat: { label: 'Enemies per ping', value: (s) => s.pierce + 1 }, apply: (s) => (s.pierce += 1) },
+  { id: 't9', name: 'T9 Predictive', desc: 'Pings go through enemies', maxLevel: 3, icon: 'icon_pierce', stat: { label: 'Enemies per ping', value: (s) => s.pierce + 1 }, apply: (s) => (s.pierce += 1) },
   { id: 'vibrate', name: 'Vibrate Mode', desc: 'Walk faster', maxLevel: 4, icon: 'icon_speed', stat: { label: 'Move speed', value: (s) => s.moveSpeed }, apply: (s) => (s.moveSpeed = Math.round(s.moveSpeed * 1.12)) },
   { id: 'saver', name: 'Power Saver', desc: 'Battery drains slower', maxLevel: 3, icon: 'chip', stat: { label: 'Battery lasts', value: (s) => 100 / s.drainPerSec, unit: 's' }, apply: (s) => (s.drainPerSec = +(s.drainPerSec * 0.8).toFixed(4)) },
-  { id: 'signal', name: 'Full Bars', desc: 'Grab gems and bolts from further away', maxLevel: 3, icon: 'gem', stat: { label: 'Pickup reach', value: (s) => s.magnet }, apply: (s) => (s.magnet = Math.round(s.magnet * 1.5)) },
-  { id: 'snake', name: 'Snake Mode', desc: 'A snake circles you and hurts enemies', maxLevel: 4, icon: 'orbiter', stat: { label: 'Snakes', value: (s) => s.orbiters }, apply: (s) => (s.orbiters += 1) },
+  { id: 'signal', name: 'Full Bars', desc: 'Grab pickups from afar', maxLevel: 3, icon: 'gem', stat: { label: 'Pickup reach', value: (s) => s.magnet }, apply: (s) => (s.magnet = Math.round(s.magnet * 1.5)) },
+  { id: 'snake', name: 'Snake Mode', desc: 'A snake guards you', maxLevel: 4, icon: 'orbiter', stat: { label: 'Snakes', value: (s) => s.orbiters }, apply: (s) => (s.orbiters += 1) },
   { id: 'case', name: 'Rubber Case', desc: 'Hits cost less battery', maxLevel: 3, icon: 'icon_shield', stat: { label: 'Battery lost per hit', value: (s) => s.hitDamage, unit: '%', decimals: 1 }, apply: (s) => { s.hitDamage = +(s.hitDamage * 0.8).toFixed(3); s.invulnMs += 150; } },
-  { id: 'antenna', name: 'Pull-Out Antenna', desc: 'Shoot enemies from further away', maxLevel: 2, icon: 'icon_range', stat: { label: 'Range', value: (s) => s.range }, apply: (s) => { s.range += 30; s.bulletSpeed += 40; } },
-  { id: 'charger', name: 'Car Charger', desc: 'Recharge your battery right now', maxLevel: Infinity, instant: true, icon: 'bolt', stat: { label: 'Battery', value: () => 0, unit: '%' }, apply: () => {} },
+  { id: 'antenna', name: 'Pull-Out Antenna', desc: 'Shoot from further away', maxLevel: 2, icon: 'icon_range', stat: { label: 'Range', value: (s) => s.range }, apply: (s) => { s.range += 30; s.bulletSpeed += 40; } },
+  { id: 'charger', name: 'Car Charger', desc: 'Recharge battery now', maxLevel: Infinity, instant: true, icon: 'bolt', stat: { label: 'Battery', value: () => 0, unit: '%' }, apply: () => {} },
 ];
 
 export const CHARGER_HEAL = 30;

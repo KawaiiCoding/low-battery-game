@@ -160,6 +160,7 @@ export class StoryScene extends Phaser.Scene {
     this.bodyText.setX(x).setY(y);
     setColor(this.bodyText, narrator ? 'y' : 'w');
     // Wrap with the real font metrics, then split into pages that fit the box: text never spills out.
+    this.bodyText.setLetterSpacing(0);
     this.bodyText.setWordWrapWidth(W - x - HINT_ROOM, true);
     const wrapped = this.bodyText.getWrappedText(line.text);
     this.pages = paginate(wrapped, this.linesThatFit(BOX_H - y - PAD_BOTTOM));
